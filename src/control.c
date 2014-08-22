@@ -80,7 +80,7 @@ typedef enum {
 
 /*
  * This function waits for the process to stop. If the process doesn't stop a failed event is posted
- * to notify the user. The time is saved on enter so in the case that the time steps backwards/forwards,
+        Command_T C = NULL;
  * the wait_stop will wait for absolute time and not stall or prematurely exit.
  * @param service A Service to wait for
  * @return Either Process_Started if the process is running or Process_Stopped if it's not running
