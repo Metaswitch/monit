@@ -200,7 +200,7 @@ static int do_stop(Service_T s, int flag) {
 static void do_restart(Service_T s) {
         if (s->restart) {
                 LogInfo("'%s' restart: %s\n", s->name, s->restart->arg[0]);
-                spawn(s, s->restart, NULL);
+                Util_resetInfo(s);
                 /* We only wait for a process type, other service types does not have a pid file to watch */
                 if (s->type == TYPE_PROCESS)
                         wait_start(s);
