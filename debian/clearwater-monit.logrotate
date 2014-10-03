@@ -8,6 +8,6 @@
         compress
         delaycompress
         postrotate
-                service monit reload > /dev/null
+                reload clearwater-monit > /dev/null
         endscript
 }
