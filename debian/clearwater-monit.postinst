@@ -18,6 +18,27 @@ case "$1" in
         test -x /usr/bin/newaliases && newaliases || :
       fi
     fi
+
+    if [ -f /etc/default/monit ]
+    then
+       rm /etc/default/monit
+    fi
+
+    if [ -f /etc/init.d/monit ]
+    then
+       rm /etc/init.d/monit
+       update-rc.d monit remove
+    fi
+
+    if [ -f /etc/logrotate.d/monit ]
+    then 
+      rm /etc/logrotate.d/monit
+    fi
+
+    if [ -f /etc/pam.d/monit ]
+    then
+      rm /etc/pam.d/monit
+    fi
     ;;
   abort-upgrade|abort-remove|abort-deconfigure)
     ;;

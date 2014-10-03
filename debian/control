@@ -1,4 +1,4 @@
-Source: monit
+Source: clearwater-monit
 Section: admin
 Priority: optional
 Maintainer: Sergey B Kirpichev <skirpichev@gmail.com>
@@ -9,10 +9,12 @@ Homepage: http://mmonit.com/monit/
 Vcs-Git: git://git.debian.org/git/collab-maint/monit.git
 Vcs-Browser: http://git.debian.org/?p=collab-maint/monit.git;a=summary
 
-Package: monit
+Package: clearwater-monit
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, lsb-base (>= 3.2-13)
 Suggests: exim4 | postfix | mail-transport-agent
+Conflicts: monit
+Replaces: monit
 Description: utility for monitoring and managing daemons or similar programs
  monit is a utility for monitoring and managing daemons or similar
  programs running on a Unix system. It will start specified programs

@@ -15,6 +15,6 @@ override_dh_installinit:
 
 override_dh_fixperms:
 	dh_fixperms
-	chmod 600 debian/monit/etc/monit/monitrc
-	chmod 0700 debian/monit/var/lib/monit/events
+	chmod 600 debian/clearwater-monit/etc/monit/monitrc
+	chmod 0700 debian/clearwater-monit/var/lib/monit/events
 

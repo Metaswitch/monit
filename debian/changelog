@@ -1,4 +1,4 @@
-monit (1:5.8.1+metaswitch-1) unstable; urgency=low
+clearwater-monit (1:5.8.1) unstable; urgency=low
 
   * Imported Upstream version 5.8.1 
   * Converted to use upstart for initialization/recovery
