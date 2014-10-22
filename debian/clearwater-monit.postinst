@@ -19,8 +19,12 @@ case "$1" in
       fi
     fi
 
-    service monit stop > /dev/null 2>&1 || true
+    # Ensure monit is stopped before starting it under upstart control (work-around
+    # for package script race conditions when upgrading monit -> clearwater-monit).
+    service monit stop &> /dev/null || true
 
+    # Remove all monit configuration files that are left behind when apt uninstalls
+    # the old monit during an upgrade to clearwater-monit.
     if [ -f /etc/default/monit ]
     then
        rm /etc/default/monit
