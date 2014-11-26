@@ -129,7 +129,7 @@ kilobyte    ("kilobyte"|"kb")
 megabyte    ("megabyte"|"mb")
 gigabyte    ("gigabyte"|"gb")
 
-%x ARGUMENT_COND DEPEND_COND SERVICE_COND URL_COND STRING_COND EVERY_COND INCLUDE
+%x ARGUMENT_COND DEPEND_COND SERVICE_COND URL_COND STRING_COND EVERY_COND HTTP_HEADER_COND INCLUDE
 
 %%
 
@@ -222,18 +222,23 @@ status            { return STATUS; }
 system            { return SYSTEM; }
 default           { return DEFAULT; }
 http              { return HTTP; }
+https             { return HTTPS; }
 apache-status     { return APACHESTATUS; }
 ftp               { return FTP; }
 smtp              { return SMTP; }
+smtps             { return SMTPS; }
 postfix-policy    { return POSTFIXPOLICY; }
 pop               { return POP; }
 imap              { return IMAP; }
+imaps             { return IMAPS; }
 clamav            { return CLAMAV; }
 dns               { return DNS; }
 mysql             { return MYSQL; }
 nntp              { return NNTP; }
 ntp3              { return NTP3; }
 ssh               { return SSH; }
+redis             { return REDIS; }
+mongodb           { return MONGODB; }
 dwp               { return DWP; }
 ldap2             { return LDAP2; }
 ldap3             { return LDAP3; }
@@ -304,6 +309,7 @@ connection        { return CONNECTION; }
 unmonitor         { return UNMONITOR; }
 action            { return ACTION; }
 icmp              { return ICMP; }
+ping              { return PING; }
 echo              { return ICMPECHO; }
 send              { return SEND; }
 expect            { return EXPECT; }
@@ -433,9 +439,13 @@ group[ \t]+       {
                     return GROUP;
                   }
 
+"http headers"{ws} {
+                        BEGIN(HTTP_HEADER_COND);
+                        return '[';
+                  }
+
 [a-zA-Z0-9]+"://" {
-                    yylval.url=
-                      create_URL(Str_ndup(yytext, strlen(yytext)-3));
+                    yylval.url = create_URL(Str_ndup(yytext, strlen(yytext)-3));
                     BEGIN(URL_COND);
                   }
 
@@ -710,8 +720,41 @@ group[ \t]+       {
 
 }
 
+<HTTP_HEADER_COND>{
+        
+        {wws}   ;
+        
+        "["     ;
 
-<INITIAL,ARGUMENT_COND,SERVICE_COND,DEPEND_COND,URL_COND,STRING_COND,EVERY_COND>. {
+        [\n]    {
+                        lineno++;
+                }
+        
+        ([^\t\r\n,\[\]:]+)/[:] { // name/:
+                        save_arg();
+                }
+        
+        [:](({ws}?["][^"]+["])|([^\r\n\],:]+)) { // : value
+                        yylval.string = Str_cat("%s:%s", Str_trim(argyytext), Str_unquote(yytext + 1));
+                        save_arg();
+                        return HTTPHEADER;
+                }
+        
+        "]"     {
+                        BEGIN(INITIAL);
+                        save_arg();
+                        return ']';
+                }
+        
+        .       {
+                        BEGIN(INITIAL);
+                        yyerror("invalid HTTP header list format");
+                }
+        
+}
+
+
+<INITIAL,ARGUMENT_COND,SERVICE_COND,DEPEND_COND,URL_COND,STRING_COND,EVERY_COND,HTTP_HEADER_COND>. {
                       check_state = None_State;
                       return yytext[0];
                   }

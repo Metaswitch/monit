@@ -53,6 +53,14 @@
  */
 
 
+/* ----------------------------------------------------------- Definitions */
+
+
+static const char *kSizeNotation[9] = {
+        "B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", NULL
+};
+
+
 /* -------------------------------------------------------- Public Methods */
 
 
@@ -128,26 +136,6 @@ char *Str_toUpper(char *s) {
 }
 
 
-char *Str_ton(long n, char s[43]) {
-        assert(s);
-        s[42] = 0;
-        char *t = s + 42;
-        unsigned long m;
-        if (n == LONG_MIN)
-                m = LONG_MAX + 1UL;
-        else if (n < 0)
-                m = -n;
-        else
-                m = n;
-        do
-                *--t = m % 10 + '0';
-        while ((m /= 10) > 0);
-        if (n < 0)
-                *--t = '-';
-        return t;
-}
-
-
 int Str_parseInt(const char *s) {
         int i;
         char *e;
@@ -200,7 +188,7 @@ char *Str_replaceChar(char *s, char o, char n) {
 int Str_startsWith(const char *a, const char *b) {
 	if (a && b) {
 	        do 
-	                if (*a++ != *b++) return false;
+	                if (toupper(*a++) != toupper(*b++)) return false;
                 while (*b);
                 return true;
         }
@@ -418,5 +406,21 @@ unsigned int Str_hash(const void *x) {
 
 int Str_cmp(const void *x, const void *y) {
         return strcmp((const char *)x, (const char *)y);
+}
+
+
+char *Str_bytesToSize(double bytes, char s[10]) {
+        assert(s);
+        assert(bytes < 1e+24);
+        *s = 0;
+        for (int i = 0; kSizeNotation[i]; i++) {
+                if (bytes > 1024) {
+                        bytes /= 1024;
+                } else {
+                        snprintf(s, 10, "%.1lf %s", bytes, kSizeNotation[i]);
+                        break;
+                }
+        }
+        return s;
 }
 

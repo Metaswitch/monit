@@ -193,6 +193,7 @@ static void _gc_service(Service_T *s) {
                         Command_free(&(*s)->program->C);
                 if ((*s)->program->args)
                         gccmd(&(*s)->program->args);
+                StringBuffer_free(&((*s)->program->output));
                 FREE((*s)->program);
         }
 
@@ -422,6 +423,13 @@ static void _gcppl(Port_T *p) {
         FREE((*p)->SSL.clientpemfile);
         FREE((*p)->request_checksum);
         FREE((*p)->request_hostheader);
+        if ((*p)->http_headers) {
+                List_T l = (*p)->http_headers;
+                while (List_length(l) > 0) {
+                        char *s = List_pop(l);
+                        FREE(s);
+                }
+        }
         FREE(*p);
 }
 

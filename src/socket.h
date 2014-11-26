@@ -52,7 +52,7 @@ typedef struct Socket_T *Socket_T;
  * @param port The port number to connect to
  * @param type The socket type to use (SOCKET_TCP or SOCKET_UPD)
  * @param use_ssl if TRUE the socket is created supporting SSL
- * @param timeout The timeout value in seconds
+ * @param timeout The timeout value in milliseconds
  * @return The connected Socket or NULL if an error occurred
  */
 Socket_T socket_new(const char *host, int port, int type, int use_ssl, int timeout);
@@ -74,7 +74,7 @@ Socket_T socket_create(void *port);
  * @param port The port number to connect to
  * @param type The socket type to use (SOCKET_TCP or SOCKET_UPD)
  * @param ssl Options for SSL
- * @param timeout The timeout value in seconds
+ * @param timeout The timeout value in milliseconds
  * @return The connected Socket or NULL if an error occurred
  */
 Socket_T socket_create_t(const char *host, int port, int type, Ssl_T ssl, int timeout);
@@ -212,7 +212,7 @@ const char *socket_get_local_host(Socket_T S);
  * @param error An error string to write to the socket's internal
  * buffer
  */
-void socket_setError(Socket_T S, const char *error, ...);
+void socket_setError(Socket_T S, const char *error, ...) __attribute__((format (printf, 2, 3)));
 
 
 /**
@@ -239,7 +239,7 @@ int socket_switch2ssl(Socket_T S, Ssl_T ssl);
  * @param m A String to send to the client
  * @return The bytes sent or -1 if an error occured
  */
-int socket_print(Socket_T S, const char *m, ...);
+int socket_print(Socket_T S, const char *m, ...) __attribute__((format (printf, 2, 3)));
 
 
 /**

@@ -61,6 +61,21 @@
 
 
 /**
+ * Escape the CDATA "]]>" stop sequence in string
+ * @param B Output StringBuffer object
+ * @param buf String to escape
+ */
+static void _escapeCDATA(StringBuffer_T B, const char *buf) {
+        for (int i = 0; buf[i]; i++) {
+                if (buf[i] == '>' && i > 1 && (buf[i - 1] == ']' && buf[i - 2] == ']'))
+                        StringBuffer_append(B, "&gt;");
+                else
+                        StringBuffer_append(B, "%c", buf[i]);
+        }
+}
+
+
+/**
  * Prints a document header into the given buffer.
  * @param B StringBuffer object
  * @param V Format version
@@ -186,14 +201,14 @@ static void status_service(Service_T S, StringBuffer_T B, short L, int V) {
                                         "</block>",
                                         S->inf->priv.filesystem.flags,
                                         S->inf->priv.filesystem.space_percent/10.,
-                                        S->inf->priv.filesystem.f_bsize > 0 ? (float)S->inf->priv.filesystem.space_total / (float)1048576 * (float)S->inf->priv.filesystem.f_bsize : 0,
-                                        S->inf->priv.filesystem.f_bsize > 0 ? (float)S->inf->priv.filesystem.f_blocks / (float)1048576 * (float)S->inf->priv.filesystem.f_bsize : 0);
+                                        S->inf->priv.filesystem.f_bsize > 0 ? (double)S->inf->priv.filesystem.space_total / 1048576. * (double)S->inf->priv.filesystem.f_bsize : 0.,
+                                        S->inf->priv.filesystem.f_bsize > 0 ? (double)S->inf->priv.filesystem.f_blocks / 1048576. * (double)S->inf->priv.filesystem.f_bsize : 0.);
                                 if (S->inf->priv.filesystem.f_files > 0) {
                                         StringBuffer_append(B,
-                                                  "<inode>"
+                                                "<inode>"
                                                 "<percent>%.1f</percent>"
-                                                "<usage>%ld</usage>"
-                                                "<total>%ld</total>"
+                                                "<usage>%lld</usage>"
+                                                "<total>%lld</total>"
                                                 "</inode>",
                                                 S->inf->priv.filesystem.inode_percent/10.,
                                                 S->inf->priv.filesystem.inode_total,
@@ -320,9 +335,13 @@ static void status_service(Service_T S, StringBuffer_T B, short L, int V) {
                                         "<program>"
                                         "<started>%lu</started>"
                                         "<status>%d</status>"
-                                        "</program>",
+                                        "<output><![CDATA[",
                                         (unsigned long)S->program->started,
                                         S->program->exitStatus);
+                                _escapeCDATA(B, StringBuffer_toString(S->program->output));
+                                StringBuffer_append(B,
+                                        "]]></output>"
+                                        "</program>");
                         }
                 }
         }
@@ -368,14 +387,7 @@ static void status_event(Event_T E, StringBuffer_T B) {
                 Event_get_id(E),
                 Event_get_state(E),
                 Event_get_action(E));
-        // Escape the CDATA "]]>" stop sequence in string
-        const char *msg = Event_get_message(E);
-        for (int i = 0; msg[i]; i++) {
-                if (msg[i] == '>' && i > 1 && (msg[i - 1] == ']' && msg[i - 2] == ']'))
-                        StringBuffer_append(B, "&gt;");
-                else
-                        StringBuffer_append(B, "%c", msg[i]);
-        }
+        _escapeCDATA(B, Event_get_message(E));
         StringBuffer_append(B, "]]></message>");
         Service_T s = Event_get_source(E);
         if (s && s->token)

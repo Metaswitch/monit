@@ -98,14 +98,6 @@
 
 #define ARGMAX             64
 #define HTTP_CONTENT_MAX   (1024*1000)
-/* Set event queue directory mode: "drwx------" */
-#define QUEUEMASK          0077
-/* Set file mode: "drw-------" */
-#define PRIVATEMASK        0177
-/* Set log file mode: "-rw-r-----" */
-#define LOGMASK            0137
-/* Set pid file mode: "-rw-r--r--" */
-#define MYPIDMASK          0122
 #define MYPIDDIR           PIDDIR
 #define MYPIDFILE          "monit.pid"
 #define MYSTATEFILE        "monit.state"
@@ -119,8 +111,8 @@
 #define PORT_HTTP          80
 #define PORT_HTTPS         443
 
-#define SSL_TIMEOUT        15
-#define SMTP_TIMEOUT       30
+#define SSL_TIMEOUT        15000
+#define SMTP_TIMEOUT       30000
 
 #define START_DELAY        0
 #define EXEC_TIMEOUT       30
@@ -156,7 +148,8 @@ typedef enum {
         Operator_Greater = 0,
         Operator_Less,
         Operator_Equal,
-        Operator_NotEqual
+        Operator_NotEqual,
+        Operator_Changed
 } Operator_Type;
 
 #define TIME_SECOND        1
@@ -232,7 +225,9 @@ typedef enum {
 #define HANDLER_MMONIT     0x2
 #define HANDLER_MAX        HANDLER_MMONIT
 
-#define ICMP_ATTEMPT_COUNT      3
+#define ICMP_ATTEMPT_COUNT 3
+
+#define EXPECT_BUFFER_MAX (UNIT_KILOBYTE * 100 + 1)
 
 
 /** ------------------------------------------------- Special purpose macros */
@@ -459,9 +454,10 @@ typedef struct mygenericproto {
 /** Defines a port object */
 typedef struct myport {
         char *hostname;                                     /**< Hostname to check */
+        List_T http_headers; /**< Optional list of HTTP headers to send with request */
         char *request;                              /**< Specific protocol request */
         char *request_checksum;     /**< The optional checksum for a req. document */
-        char *request_hostheader;            /**< The optional Host: header to use */
+        char *request_hostheader;            /**< The optional Host: header to use. Deprecated */
         char *pathname;                   /**< Pathname, in case of an UNIX socket */
         Generic_T generic;                                /**< Generic test handle */
         volatile int socket;                       /**< Socket used for connection */
@@ -470,7 +466,7 @@ typedef struct myport {
         int port;                                                  /**< Portnumber */
         int request_hashtype;   /**< The optional type of hash for a req. document */
         int maxforward;            /**< Optional max forward for protocol checking */
-        int timeout;   /**< The timeout in seconds to wait for connect or read i/o */
+        int timeout; /**< The timeout in millseconds to wait for connect or read i/o */
         int retry;       /**< Number of connection retry before reporting an error */
         int is_available;                /**< TRUE if the server/port is available */
         int version;                                         /**< Protocol version */
@@ -511,11 +507,11 @@ typedef struct myport {
 } *Port_T;
 
 
-/** Defines a ICMP object */
+/** Defines a ICMP/Ping object */
 typedef struct myicmp {
         int type;                                              /**< ICMP type used */
         int count;                                   /**< ICMP echo requests count */
-        int timeout;              /**< The timeout in seconds to wait for response */
+        int timeout;         /**< The timeout in milliseconds to wait for response */
         int is_available;                     /**< TRUE if the server is available */
         double response;                              /**< ICMP ECHO response time */
         EventAction_T action;  /**< Description of the action upon event occurence */
@@ -590,6 +586,7 @@ typedef struct myactionrate {
  cycle based every statement and the new cron-format version */
 typedef struct myevery {
         int type; /**< 0 = not set, 1 = cycle, 2 = cron, 3 = negated cron */
+        time_t last_run;
         union {
                 struct {
                         int number; /**< Check this program at a given cycles */
@@ -601,6 +598,7 @@ typedef struct myevery {
 
 
 typedef struct mystatus {
+        int  initialized;                      /**< TRUE if status was initialized */
         int return_value;                /**< Return value of the program to check */
         Operator_Type operator;                           /**< Comparison operator */
         EventAction_T action;  /**< Description of the action upon event occurence */
@@ -612,11 +610,12 @@ typedef struct mystatus {
 
 typedef struct myprogram {
         Process_T P;          /**< A Process_T object representing the sub-process */
-        Command_T C;          /**< A Command_T object for building the sub-process */
+        Command_T C;          /**< A Command_T object for creating the sub-process */
         command_t args;                                     /**< Program arguments */
-        int timeout;          /**< How long the program may run until it is killed */
+        int timeout;           /**< Seconds the program may run until it is killed */
         time_t started;                      /**< When the sub-process was started */
         int exitStatus;                 /**< Sub-process exit status for reporting */
+        StringBuffer_T output;                            /**< Last program output */
 } *Program_T;
 
 
@@ -696,7 +695,7 @@ typedef struct mygid {
 typedef struct myfilesystem {
         int  resource;                        /**< Whether to check inode or space */
         Operator_Type operator;                           /**< Comparison operator */
-        long limit_absolute;                               /**< Watermark - blocks */
+        long long limit_absolute;                          /**< Watermark - blocks */
         int  limit_percent;                               /**< Watermark - percent */
         EventAction_T action;  /**< Description of the action upon event occurence */
 
@@ -715,19 +714,18 @@ typedef struct myinfo {
 
         union {
                 struct {
-                        long   f_bsize;                               /**< Transfer block size */
-                        long   f_blocks;                  /**< Total data blocks in filesystem */
-                        long   f_blocksfree;       /**< Free blocks available to non-superuser */
-                        long   f_blocksfreetotal;               /**< Free blocks in filesystem */
-                        long   f_files;                    /**< Total file nodes in filesystem */
-                        long   f_filesfree;                 /**< Free file nodes in filesystem */
-                        char  *mntpath;          /**< Filesystem file, directory or mountpoint */
-                        int    inode_percent;                  /**< Used inode percentage * 10 */
-                        long   inode_total;                      /**< Used inode total objects */
-                        int    space_percent;                  /**< Used space percentage * 10 */
-                        long   space_total;                       /**< Used space total blocks */
-                        int    _flags;                   /**< Filesystem flags from last cycle */
-                        int    flags;                  /**< Filesystem flags from actual cycle */
+                        long long  f_bsize;                           /**< Transfer block size */
+                        long long  f_blocks;              /**< Total data blocks in filesystem */
+                        long long  f_blocksfree;   /**< Free blocks available to non-superuser */
+                        long long  f_blocksfreetotal;           /**< Free blocks in filesystem */
+                        long long  f_files;                /**< Total file nodes in filesystem */
+                        long long  f_filesfree;             /**< Free file nodes in filesystem */
+                        int        inode_percent;              /**< Used inode percentage * 10 */
+                        long long  inode_total;                  /**< Used inode total objects */
+                        int        space_percent;              /**< Used space percentage * 10 */
+                        long long  space_total;                   /**< Used space total blocks */
+                        int        _flags;               /**< Filesystem flags from last cycle */
+                        int        flags;              /**< Filesystem flags from actual cycle */
                 } filesystem;
 
                 struct {
@@ -891,7 +889,6 @@ struct myrun {
         volatile int  doreload;    /**< TRUE if a monit daemon should reinitialize */
         volatile int  dowakeup;  /**< TRUE if a monit daemon was wake up by signal */
         int  doaction;             /**< TRUE if some service(s) has action pending */
-        mode_t umask;                /**< The initial umask monit was started with */
         time_t incarnation;              /**< Unique ID for running monit instance */
         int  handler_init;                  /**< The handlers queue initialization */
         int  handler_flag;                            /**< The handlers state flag */
@@ -909,7 +906,7 @@ struct myrun {
         } Env;
 
         char *mail_hostname;    /**< Used in HELO/EHLO/MessageID when sending mail */
-        int mailserver_timeout;    /**< Connect and read timeout for a SMTP server */
+        int mailserver_timeout; /**< Connect and read timeout ms for a SMTP server */
         Mail_T maillist;                /**< Global alert notification mailinglist */
         MailServer_T mailservers;    /**< List of MTAs used for alert notification */
         Mmonit_T mmonits;        /**< Event notification and status receivers list */
@@ -976,16 +973,16 @@ void  reset_depend();
 void  spawn(Service_T, command_t, Event_T);
 int   status(char *);
 int   log_init();
-void  LogEmergency(const char *, ...);
-void  LogAlert(const char *, ...);
-void  LogCritical(const char *, ...);
-void  LogError(const char *, ...);
+void  LogEmergency(const char *, ...) __attribute__((format (printf, 1, 2)));
+void  LogAlert(const char *, ...) __attribute__((format (printf, 1, 2)));
+void  LogCritical(const char *, ...) __attribute__((format (printf, 1, 2)));
+void  LogError(const char *, ...) __attribute__((format (printf, 1, 2)));
+void  LogWarning(const char *, ...) __attribute__((format (printf, 1, 2)));
+void  LogNotice(const char *, ...) __attribute__((format (printf, 1, 2)));
+void  LogInfo(const char *, ...) __attribute__((format (printf, 1, 2)));
+void  LogDebug(const char *, ...) __attribute__((format (printf, 1, 2)));
 void  vLogError(const char *s, va_list ap);
-void vLogAbortHandler(const char *s, va_list ap);
-void  LogWarning(const char *, ...);
-void  LogNotice(const char *, ...);
-void  LogInfo(const char *, ...);
-void  LogDebug(const char *, ...);
+void  vLogAbortHandler(const char *s, va_list ap);
 void  log_close();
 #ifndef HAVE_VSYSLOG
 #ifdef HAVE_SYSLOG
@@ -1001,7 +998,7 @@ void  gc_event(Event_T *e);
 int   kill_daemon(int);
 int   exist_daemon();
 int   sendmail(Mail_T);
-int   sock_msg(int, char *, ...);
+int   sock_msg(int, char *, ...) __attribute__((format (printf, 2, 3)));
 void  init_env();
 void  monit_http(int);
 int   can_http();

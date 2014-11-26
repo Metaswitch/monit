@@ -67,6 +67,15 @@
  */
 
 
+/* ------------------------------------------------------------- Definitions */
+
+
+typedef enum {
+        Process_Stopped = 0,
+        Process_Started
+} Process_Status;
+
+
 /* ----------------------------------------------------------------- Private */
 
 
@@ -76,7 +85,7 @@ static int _getOutput(InputStream_T in, char *buf, int buflen) {
 }
 
 
-static int _commandExecute(Service_T S, command_t c, char *msg, int msglen) {
+static int _commandExecute(Service_T S, command_t c, char *msg, int msglen, long *timeout) {
         ASSERT(S);
         ASSERT(c);
         ASSERT(msg);
@@ -114,12 +123,11 @@ static int _commandExecute(Service_T S, command_t c, char *msg, int msglen) {
                 Process_T P = Command_execute(C);
                 Command_free(&C);
                 if (P) {
-                        long timeout = c->timeout * USEC_PER_SEC;
                         do {
                                 Time_usleep(100000); // Check interval is 100ms
-                                timeout -= 100000;
-                        } while ((status = Process_exitStatus(P)) < 0 && timeout > 0);
-                        if (timeout <= 0)
+                                *timeout -= 100000;
+                        } while ((status = Process_exitStatus(P)) < 0 && *timeout > 0 && ! Run.stopped);
+                        if (*timeout <= 0)
                                 snprintf(msg, msglen, "Program %s timed out", c->arg[0]);
                         int n, total = 0;
                         char buf[STRLEN];
@@ -131,7 +139,7 @@ static int _commandExecute(Service_T S, command_t c, char *msg, int msglen) {
                                         DEBUG("%s", buf);
                                         // Report the first message (override existing plain timeout message if some program output is available)
                                         if (! total)
-                                                snprintf(msg, msglen, "%s: %s%s", c->arg[0], timeout <= 0 ? "Program timed out -- " : "", buf);
+                                                snprintf(msg, msglen, "%s: %s%s", c->arg[0], *timeout <= 0 ? "Program timed out -- " : "", buf);
                                         total += n;
                                 }
                         } while (n > 0 && Run.debug && total < 2048); // Limit the debug output (if the program will have endless output, such as 'yes' utility, we have to stop at some point to not spin here forever)
@@ -139,6 +147,30 @@ static int _commandExecute(Service_T S, command_t c, char *msg, int msglen) {
                 }
         }
         return status;
+}
+
+
+static Process_Status _waitStart(Service_T s, long *timeout) {
+        long wait = 50000;
+        do {
+                if (Util_isProcessRunning(s, TRUE))
+                        return Process_Started;
+                Time_usleep(wait);
+                *timeout -= wait;
+                wait = wait < 1000000 ? wait * 2 : 1000000; // double the wait during each cycle until 1s is reached (Util_isProcessRunning can be heavy and we don't want to drain power every 100ms on mobile devices)
+        } while (*timeout > 0 && ! Run.stopped);
+        return Process_Stopped;
+}
+
+
+static Process_Status _waitStop(int pid, long *timeout) {
+        do {
+                if (! pid || (getpgid(pid) == -1 && errno != EPERM))
+                        return Process_Stopped;
+                Time_usleep(100000);
+                *timeout -= 100000;
+        } while (*timeout > 0 && ! Run.stopped);
+        return Process_Started;
 }
 
 
@@ -164,13 +196,12 @@ static void _doStart(Service_T s) {
                 if (s->type != TYPE_PROCESS || ! Util_isProcessRunning(s, FALSE)) {
                         LogInfo("'%s' start: %s\n", s->name, s->start->arg[0]);
                         char msg[STRLEN];
-                        int status = _commandExecute(s, s->start, msg, sizeof(msg));
-                        if ((s->type == TYPE_PROCESS && ! Util_isProcessRunning(s, TRUE)) || status < 0) {
-//FIXME: allow to wait for start even if command finished ... ditto stop and restart (slow starting programs)
-                                Event_post(s, Event_Exec, STATE_FAILED, s->action_EXEC, "failed to start (exit status %d) -- %s", status, msg);
-                        } else {
+                        long timeout = s->start->timeout * USEC_PER_SEC;
+                        int status = _commandExecute(s, s->start, msg, sizeof(msg), &timeout);
+                        if ((s->type == TYPE_PROCESS && _waitStart(s, &timeout) != Process_Started) || status < 0)
+                                Event_post(s, Event_Exec, STATE_FAILED, s->action_EXEC, "failed to start (exit status %d) -- %s", status, *msg ? msg : "no output");
+                        else
                                 Event_post(s, Event_Exec, STATE_SUCCEEDED, s->action_EXEC, "started");
-                        }
                 }
         } else {
                 LogDebug("'%s' start skipped -- method not defined\n", s->name);
@@ -195,10 +226,12 @@ static int _doStop(Service_T s, int flag) {
                 if (s->type != TYPE_PROCESS || Util_isProcessRunning(s, FALSE)) {
                         LogInfo("'%s' stop: %s\n", s->name, s->stop->arg[0]);
                         char msg[STRLEN];
-                        int status = _commandExecute(s, s->stop, msg, sizeof(msg));
-                        if ((s->type == TYPE_PROCESS && Util_isProcessRunning(s, TRUE)) || status < 0) {
+                        long timeout = s->stop->timeout * USEC_PER_SEC;
+                        int pid = Util_isProcessRunning(s, TRUE);
+                        int status = _commandExecute(s, s->stop, msg, sizeof(msg), &timeout);
+                        if ((s->type == TYPE_PROCESS && _waitStop(pid, &timeout) != Process_Stopped) || status < 0) {
                                 rv = FALSE;
-                                Event_post(s, Event_Exec, STATE_FAILED, s->action_EXEC, "failed to stop (exit status %d) -- %s", status, msg);
+                                Event_post(s, Event_Exec, STATE_FAILED, s->action_EXEC, "failed to stop (exit status %d) -- %s", status, *msg ? msg : "no output");
                         } else {
                                 Event_post(s, Event_Exec, STATE_SUCCEEDED, s->action_EXEC, "stopped");
                         }
@@ -224,12 +257,12 @@ static void _doRestart(Service_T s) {
                 LogInfo("'%s' restart: %s\n", s->name, s->restart->arg[0]);
                 Util_resetInfo(s);
                 char msg[STRLEN];
-                int status = _commandExecute(s, s->restart, msg, sizeof(msg));
-                if ((s->type == TYPE_PROCESS && ! Util_isProcessRunning(s, TRUE)) || status < 0) {
+                long timeout = s->restart->timeout * USEC_PER_SEC;
+                int status = _commandExecute(s, s->restart, msg, sizeof(msg), &timeout);
+                if ((s->type == TYPE_PROCESS && _waitStart(s, &timeout) != Process_Started) || status < 0)
                         Event_post(s, Event_Exec, STATE_FAILED, s->action_EXEC, "failed to restart (exit status %d) -- %s", status, msg);
-                } else {
+                else
                         Event_post(s, Event_Exec, STATE_SUCCEEDED, s->action_EXEC, "restarted");
-                }
         } else {
                 LogDebug("'%s' restart skipped -- method not defined\n", s->name);
         }
@@ -344,16 +377,16 @@ int control_service_daemon(const char *S, const char *action) {
         if (socket_print(socket,
                 "POST /%s HTTP/1.0\r\n"
                 "Content-Type: application/x-www-form-urlencoded\r\n"
-                "Content-Length: %d\r\n"
+                "Content-Length: %lu\r\n"
                 "%s"
                 "\r\n"
                 "action=%s",
                 S,
-                strlen("action=") + strlen(action),
+                (unsigned long)(strlen("action=") + strlen(action)),
                 auth ? auth : "",
                 action) < 0)
         {
-                LogError("Cannot send the command '%s' to the monit daemon -- %s", action ? action : "null", STRERROR);
+                LogError("Cannot send the command '%s' to the monit daemon -- %s\n", action ? action : "null", STRERROR);
                 goto err1;
         }
 
@@ -474,7 +507,7 @@ int control_service(const char *S, int A) {
                         break;
 
                 default:
-                        LogError("Service '%s' -- invalid action %s\n", S, A);
+                        LogError("Service '%s' -- invalid action %d\n", S, A);
                         return FALSE;
         }
         return TRUE;

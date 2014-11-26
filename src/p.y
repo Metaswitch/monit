@@ -273,8 +273,8 @@
 %token HOST HOSTNAME PORT TYPE UDP TCP TCPSSL PROTOCOL CONNECTION
 %token ALERT NOALERT MAILFORMAT UNIXSOCKET SIGNATURE
 %token TIMEOUT RETRY RESTART CHECKSUM EVERY NOTEVERY
-%token DEFAULT HTTP APACHESTATUS FTP SMTP POP IMAP CLAMAV NNTP NTP3 MYSQL DNS WEBSOCKET
-%token SSH DWP LDAP2 LDAP3 RDATE RSYNC TNS PGSQL POSTFIXPOLICY SIP LMTP GPS RADIUS MEMCACHE
+%token DEFAULT HTTP HTTPS APACHESTATUS FTP SMTP SMTPS POP IMAP IMAPS CLAMAV NNTP NTP3 MYSQL DNS WEBSOCKET
+%token SSH DWP LDAP2 LDAP3 RDATE RSYNC TNS PGSQL POSTFIXPOLICY SIP LMTP GPS RADIUS MEMCACHE REDIS MONGODB
 %token <string> STRING PATH MAILADDR MAILFROM MAILREPLYTO MAILSUBJECT
 %token <string> MAILBODY SERVICENAME STRINGNAME
 %token <number> NUMBER PERCENT LOGLIMIT CLOSELIMIT DNSLIMIT KEEPALIVELIMIT
@@ -291,11 +291,11 @@
 %token SSLAUTO SSLV2 SSLV3 TLSV1 TLSV11 TLSV12 CERTMD5
 %token BYTE KILOBYTE MEGABYTE GIGABYTE
 %token INODE SPACE PERMISSION SIZE MATCH NOT IGNORE ACTION UPTIME
-%token EXEC UNMONITOR ICMP ICMPECHO NONEXIST EXIST INVALID DATA RECOVERED PASSED SUCCEEDED
+%token EXEC UNMONITOR PING ICMP ICMPECHO NONEXIST EXIST INVALID DATA RECOVERED PASSED SUCCEEDED
 %token URL CONTENT PID PPID FSFLAG
 %token REGISTER CREDENTIALS
 %token <url> URLOBJECT
-%token <string> TARGET TIMESPEC
+%token <string> TARGET TIMESPEC HTTPHEADER
 %token <number> MAXFORWARD
 %token FIPS
 
@@ -523,6 +523,8 @@ startdelay      : /* EMPTY */        { $<number>$ = START_DELAY; }
 
 setexpectbuffer : SET EXPECTBUFFER NUMBER unit {
                     Run.expectbuffer = $3 * $<number>4;
+                    if (Run.expectbuffer > EXPECT_BUFFER_MAX)
+                        yyerror("Maximum value for expect buffer is 100 KB");
                   }
                 ;
 
@@ -846,6 +848,9 @@ checkfile       : CHECKFILE SERVICENAME PATHTOK PATH {
 checkfilesys    : CHECKFILESYS SERVICENAME PATHTOK PATH {
                     createservice(TYPE_FILESYSTEM, $<string>2, $4, check_filesystem);
                   }
+                | CHECKFILESYS SERVICENAME PATHTOK STRING {
+                    createservice(TYPE_FILESYSTEM, $<string>2, $4, check_filesystem);
+                  }
                 ;
 
 checkdir        : CHECKDIR SERVICENAME PATHTOK PATH {
@@ -881,7 +886,15 @@ checkprogram    : CHECKPROGRAM SERVICENAME PATHTOK argumentlist programtimeout {
                         check_exec(c->arg[0]);
                         createservice(TYPE_PROGRAM, $<string>2, Str_dup(c->arg[0]), check_program);
                         current->program->timeout = $<number>5;
-                  }
+                        current->program->output = StringBuffer_create(64);
+                 }
+                | CHECKPROGRAM SERVICENAME PATHTOK argumentlist useroptionlist programtimeout {
+                        command_t c = command; // Current command
+                        check_exec(c->arg[0]);
+                        createservice(TYPE_PROGRAM, $<string>2, Str_dup(c->arg[0]), check_program);
+                        current->program->timeout = $<number>5;
+                        current->program->output = StringBuffer_create(64);
+                 }
                 ;
 
 start           : START argumentlist exectimeout {
@@ -971,14 +984,20 @@ connectionunix  : IF FAILED unixsocket type protocol nettimeout retry rate1
                   }
                 ;
 
-icmp            : IF FAILED ICMP icmptype icmpcount nettimeout rate1
-                  THEN action1 recovery {
+icmp            : IF FAILED ICMP icmptype icmpcount nettimeout rate1 THEN action1 recovery {
                    icmpset.type = $<number>4;
                    icmpset.count = $<number>5;
                    icmpset.timeout = $<number>6;
                    addeventaction(&(icmpset).action, $<number>9, $<number>10);
                    addicmp(&icmpset);
                   }
+                | IF FAILED PING icmpcount nettimeout rate1 THEN action1 recovery {
+                        icmpset.type = ICMP_ECHO;
+                        icmpset.count = $<number>4;
+                        icmpset.timeout = $<number>5;
+                        addeventaction(&(icmpset).action, $<number>8, $<number>9);
+                        addicmp(&icmpset);
+                 }
                 ;
 
 host            : /* EMPTY */ {
@@ -1027,14 +1046,14 @@ sslversion      : /* EMPTY */  { $<number>$ = SSL_VERSION_NONE; }
                 | TLSV1        { $<number>$ = SSL_VERSION_TLSV1; }
                 | TLSV11
                 {
-#ifndef HAVE_TLSV1_1_CLIENT_METHOD
+#ifndef HAVE_TLSV1_1
                         yyerror("Your SSL Library does not support TLS version 1.1");
 #endif
                         $<number>$ = SSL_VERSION_TLSV11;
                 }
                 | TLSV12
                 {
-#ifndef HAVE_TLSV1_1_CLIENT_METHOD
+#ifndef HAVE_TLSV1_2
                         yyerror("Your SSL Library does not support TLS version 1.2");
 #endif
                         $<number>$ = SSL_VERSION_TLSV12;
@@ -1061,10 +1080,22 @@ protocol        : /* EMPTY */  {
                     portset.protocol = Protocol_get(Protocol_FTP);
                   }
                 | PROTOCOL HTTP httplist {
-                    portset.protocol = Protocol_get(Protocol_HTTP);
+                        portset.protocol = Protocol_get(Protocol_HTTP);
                   }
+                | PROTOCOL HTTPS httplist {
+                        portset.type = SOCK_STREAM;
+                        portset.SSL.use_ssl = TRUE;
+                        portset.SSL.version = SSL_VERSION_AUTO;
+                        portset.protocol = Protocol_get(Protocol_HTTP);
+                 }
                 | PROTOCOL IMAP {
-                    portset.protocol = Protocol_get(Protocol_IMAP);
+                        portset.protocol = Protocol_get(Protocol_IMAP);
+                  }
+                | PROTOCOL IMAPS {
+                        portset.type = SOCK_STREAM;
+                        portset.SSL.use_ssl = TRUE;
+                        portset.SSL.version = SSL_VERSION_AUTO;
+                        portset.protocol = Protocol_get(Protocol_IMAP);
                   }
                 | PROTOCOL CLAMAV {
                     portset.protocol = Protocol_get(Protocol_CLAMAV);
@@ -1074,6 +1105,9 @@ protocol        : /* EMPTY */  {
                   }
                 | PROTOCOL LDAP3 {
                     portset.protocol = Protocol_get(Protocol_LDAP3);
+                  }
+                | PROTOCOL MONGODB  {
+                    portset.protocol = Protocol_get(Protocol_MONGODB);
                   }
                 | PROTOCOL MYSQL {
                     portset.protocol = Protocol_get(Protocol_MYSQL);
@@ -1097,11 +1131,20 @@ protocol        : /* EMPTY */  {
                 | PROTOCOL SMTP {
                     portset.protocol = Protocol_get(Protocol_SMTP);
                   }
+                | PROTOCOL SMTPS {
+                        portset.type = SOCK_STREAM;
+                        portset.SSL.use_ssl = TRUE;
+                        portset.SSL.version = SSL_VERSION_AUTO;
+                        portset.protocol = Protocol_get(Protocol_SMTP);
+                 }
                 | PROTOCOL SSH  {
                     portset.protocol = Protocol_get(Protocol_SSH);
                   }
                 | PROTOCOL RDATE {
                     portset.protocol = Protocol_get(Protocol_RDATE);
+                  }
+                | PROTOCOL REDIS  {
+                    portset.protocol = Protocol_get(Protocol_REDIS);
                   }
                 | PROTOCOL RSYNC {
                     portset.protocol = Protocol_get(Protocol_RSYNC);
@@ -1185,6 +1228,7 @@ http            : request
                 | responsesum
                 | status
                 | hostheader
+                | '[' httpheaderlist ']'
                 ;
 
 status          : STATUS operator NUMBER {
@@ -1207,6 +1251,15 @@ responsesum     : CHECKSUM STRING {
 hostheader      : HOSTHEADER STRING {
                     portset.request_hostheader = $2;
                   }
+                ;
+
+httpheaderlist  : /* EMPTY */
+                | httpheaderlist HTTPHEADER {
+                        if (! portset.http_headers) {
+                                portset.http_headers = List_new();
+                        }
+                        List_append(portset.http_headers, $2);
+                 }
                 ;
 
 secret          : SECRET STRING {
@@ -1287,8 +1340,8 @@ icmpcount       : /* EMPTY */ {
                    $<number>$ = ICMP_ATTEMPT_COUNT;
                   }
                 | COUNT NUMBER {
-                   $<number>$ = $2;
-                  }
+                        $<number>$ = $2;
+                 }
                 ;
 
 exectimeout     : /* EMPTY */ {
@@ -1308,10 +1361,10 @@ programtimeout  : /* EMPTY */ {
                 ;
 
 nettimeout      : /* EMPTY */ {
-                   $<number>$ = NET_TIMEOUT;
+                   $<number>$ = NET_TIMEOUT; // timeout is in milliseconds
                   }
                 | TIMEOUT NUMBER SECOND {
-                   $<number>$ = $2;
+                   $<number>$ = $2 * 1000; // net timeout is in milliseconds internally
                   }
                 ;
 
@@ -1453,9 +1506,17 @@ dependant       : SERVICENAME { adddependant($<string>1); }
                 ;
 
 statusvalue     : IF STATUS operator NUMBER rate1 THEN action1 recovery {
+                        statusset.initialized = TRUE;
                         statusset.operator = $<number>3;
                         statusset.return_value = $<number>4;
                         addeventaction(&(statusset).action, $<number>7, $<number>8);
+                        addstatus(&statusset);
+                   }
+                | IF CHANGED STATUS rate1 THEN action1 {
+                        statusset.initialized = FALSE;
+                        statusset.operator = Operator_Changed;
+                        statusset.return_value = 0;
+                        addeventaction(&(statusset).action, $<number>6, ACTION_IGNORE);
                         addstatus(&statusset);
                    }
                 ;
@@ -1591,7 +1652,7 @@ operator        : /* EMPTY */ { $<number>$ = Operator_Equal; }
                 | LESS        { $<number>$ = Operator_Less; }
                 | EQUAL       { $<number>$ = Operator_Equal; }
                 | NOTEQUAL    { $<number>$ = Operator_NotEqual; }
-                | CHANGED     { $<number>$ = Operator_NotEqual; }
+                | CHANGED     { $<number>$ = Operator_Changed; }
                 ;
 
 time            : /* EMPTY */ { $<number>$ = TIME_SECOND; }
@@ -1715,11 +1776,11 @@ inode           : IF INODE operator NUMBER rate1 THEN action1 recovery {
                 ;
 
 space           : IF SPACE operator value unit rate1 THEN action1 recovery {
-                    if (!filesystem_usage(current->inf, current->path))
+                    if (! filesystem_usage(current))
                       yyerror2("Cannot read usage of filesystem %s", current->path);
                     filesystemset.resource = RESOURCE_ID_SPACE;
                     filesystemset.operator = $<number>3;
-                    filesystemset.limit_absolute = (int)((float)$<real>4 / (float)current->inf->priv.filesystem.f_bsize * (float)$<number>5);
+                    filesystemset.limit_absolute = (long long)((double)$<real>4 / (double)current->inf->priv.filesystem.f_bsize * (double)$<number>5);
                     addeventaction(&(filesystemset).action, $<number>8, $<number>9);
                     addfilesystem(&filesystemset);
                   }
@@ -2090,6 +2151,12 @@ static void postparse() {
                         for (int i = 1; i < s->program->args->length; i++) {
                                 Command_appendArgument(s->program->C, s->program->args->arg[i]);
                         }
+                        if (s->program->args->has_uid) {
+                                Command_setUid(s->program->C, s->program->args->uid);
+                        }
+                        if (s->program->args->has_gid) {
+                                Command_setGid(s->program->C, s->program->args->gid);
+                        }
                 }
         }
 
@@ -2300,6 +2367,7 @@ static void addport(Port_T port) {
   p->url_request        = port->url_request;
   p->request_checksum   = port->request_checksum;
   p->request_hostheader = port->request_hostheader;
+  p->http_headers       = port->http_headers;
   p->version            = port->version;
   p->operator           = port->operator;
   p->status             = port->status;
@@ -2648,6 +2716,7 @@ static void addstatus(Status_T status) {
         Status_T s;
         ASSERT(status);
         NEW(s);
+        s->initialized = status->initialized;
         s->return_value = status->return_value;
         s->operator = status->operator;
         s->action = status->action;
@@ -3421,6 +3490,7 @@ static void reset_permset() {
  * Reset the Status set to default values
  */
 static void reset_statusset() {
+        statusset.initialized = FALSE;
         statusset.return_value = 0;
         statusset.operator = Operator_Equal;
         statusset.action = NULL;
