@@ -41,16 +41,15 @@
 /** @name class methods */
 //@{ 
 
-
 /**
- * Factory method for building a specific time. Time is normalized and
+ * Factory method for building a specific time. Time is normalized and 
  * built in the local time zone.
  * @param year the year ~ (1970..2037) for this time
- * @param month the month (January=1..December=12)
+ * @param month the month (January=1..December=12) 
  * @param day the day of the month (1..31)
  * @param hour the hour (0..23)
  * @param min the minutes (0..59)
- * @param sec the seconds of the minute (0..61). Yes, seconds can range
+ * @param sec the seconds of the minute (0..61). Yes, seconds can range 
  * from 0 to 61. This allows the system to inject leap seconds.
  * @return A time_t representing the specified time
  * @exception AssertException If a parameter is outside the valid range
@@ -59,23 +58,64 @@ time_t Time_build(int year, int month, int day, int hour, int min, int sec);
 
 
 /**
- * Returns the time since the epoch measured in seconds.
- * @return A time_t representing the systems notion of seconds since the 
- * <strong>epoch</strong> (January 1, 1970, 00:00:00 GMT) in Coordinated
- * Universal Time (UTC).
+ * Parse a Date string and return a <code>time_t</code> representation of 
+ * the parsed string. The method parse standard 
+ * <a href="ftp://ftp.rfc-editor.org/in-notes/rfc21123.txt">RFC1123</a> 
+ * date strings on the format <code>Thu, 17 Oct 2002 19:10:01</code>. Any 
+ * permutations of such a string can also be parsed, for example a Unix
+ * date string or a RFC822 date. Any timezone in <code>date</code> is
+ * ignored and the time is parsed using local zone. The following list 
+ * show some examples:
+ * <ul>
+ * <li>Fri, 12 Jan 2007 19:10:01</li>
+ * <li>Fri Jan 12 02:29:54 CET 2007</li>
+ * <li>October 17, 2002, time 19:10:01 GMT</li>
+ * <li>/2002/Oct/17</li>
+ * <li>17/Oct/2002</li>
+ * <li>19:10:01 2002 17 Oct</li>
+ * <li>17. October 1970</li>
+ * </ul>
+ * The <a href="ftp://ftp.rfc-editor.org/in-notes/rfc21123.txt">RFC1123</a>
+ * Date String time components: The weekday is a literal
+ * e.g. Thu or Thursday. The weekday component is optional. The month
+ * day is a two digit number, e.g. 17 or 07. The month must be given
+ * as a literal e.g. Oct or October. The year is a four digit number
+ * e.g. 2002. The time is a string with three numbers representing
+ * hours, minutes and seconds. The numbers must be separated with the
+ * ':' character i.e. 19:10:01. Time is optional and if omitted
+ * defaults to 00:00:00.
+ * @param date The date string to parse
+ * @return A time_t representing seconds since the Epoch or -1 if 
+ * <code>date</code> cannot be parsed as a Time.
+ */
+time_t Time_parse(const char *date);
+
+
+/**
+ * Returns the time since the Epoch (00:00:00 UTC, January 1, 1970),
+ * measured in seconds. 
+ * @return A time_t representing the current local time since the epoch
  * @exception AssertException If time could not be obtained
  */
 time_t Time_now(void);
 
 
 /**
- * Returns the time since the epoch measured in milliseconds.
- * @return A 64 bits long representing the systems notion of milliseconds 
- * since the <strong>epoch</strong> (January 1, 1970, 00:00:00 GMT) in 
- * Coordinated Universal Time (UTC).
+ * Returns the time since the Epoch (00:00:00 UTC, January 1, 1970),
+ * measured in milliseconds. 
+ * @return A 64 bits long representing the current local time since 
+ * the epoch in milliseconds
  * @exception AssertException If time could not be obtained
  */
 long long int Time_milli(void);
+
+
+/**
+ * Converts a local time to the GMT timezone
+ * @param localtime A time_t representing a local time
+ * @return The local time converted to the equivalent GMT timezone
+ */
+time_t Time_gmt(time_t localtime);
 
 
 /**
@@ -135,13 +175,36 @@ int Time_year(time_t time);
 
 
 /**
- * Returns a RFC1123 date string for the given UTC time. The returned string
- * is computed in the local timezone. The result buffer must be large enough
- * to hold at least 26 bytes. Example:
+ * Add <code>years, months and/or days</code> to this <code>time</code>
+ * (or subtract if <code>years, months and/or days</code> are negative).
+ * @param time time to modify
+ * @param days Number of days to add to time
+ * @param months Number of months to add to time
+ * @param years Number of years to add to time
+ * @return The new time normalized in the local time zone
+ */
+time_t Time_add(time_t time, int years, int months, int days);
+
+
+/**
+ * Returns the number of days between <code>to</code> and <code>from</code>.
+ * @param to time
+ * @param from time
+ * @return The difference between <code>from</code> and <code>to</code>
+ * in days. The value is a positive number regardless if <code>to</code>
+ * is earlier or later than <code>from</code>.
+ */
+int Time_daysBetween(time_t to, time_t from);
+
+
+/**
+ * Returns a RFC1123 formated date string minus the timezone for the given
+ * time. The returned string is computed in the local timezone. The result
+ * buffer must be large enough to hold at least 26 bytes. Example:
  * <pre>
- *  Time_string(1253052085, buf) -> "Wed, 16 Sep 2009 12:01:25"
+ * Tue, 15 Sep 2009 22:01:25
  * </pre>
- * @param time Number of time seconds since the EPOCH in UTC
+ * @param time Number of seconds since the EPOCH
  * @param result The buffer to write the date string too
  * @return a pointer to the result buffer
  */
@@ -149,17 +212,36 @@ char *Time_string(time_t time, char result[26]);
 
 
 /**
- * Returns a RFC1123 date string for the given UTC time. The returned string
- * represent the specified time in GMT timezone. The submitted result buffer 
- * must be large enough to hold at least 30 bytes. Example:
+ * Returns a RFC1123 formated date string for the given time. <code>time</code>
+ * is <i>converted</i> to UTC (GMT) and the returned string represent the 
+ * specified time in UTC. The submitted result buffer must be large enough 
+ * to hold at least 30 bytes. Result example:
  * <pre>
- *  Time_gmtstring(1253052085, buf) -> "Tue, 15 Sep 2009 22:01:25 GMT"
+ * Tue, 15 Sep 2009 22:01:25 GMT
  * </pre>
- * @param time Number of time seconds since the EPOCH in UTC
+ * @param time Number of localtime seconds since the EPOCH
  * @param result The buffer to write the date string too
  * @return a pointer to the result buffer
  */
 char *Time_gmtstring(time_t time, char result[30]);
+
+
+/**
+ * Returns <code>time</code> as a date string. The <code>format</code> 
+ * parameter determines the format of the string. The format specifiers 
+ * are the same as those used by <code>strftime(3)</code>. For instance to
+ * specify a RFC822 time string on the format "Wed, 05 Feb 2003 01:16:44
+ * +0100" the following format string is used:
+ * <code>"%a, %d %b %Y %H:%M:%S %z"</code>
+ * @param result The buffer to write the date string too
+ * @param size Size of the result buffer
+ * @param format A <code>strftime</code> format string
+ * @param time Number of seconds since the EPOCH
+ * @return A pointer to the result buffer
+ * @exception AssertException If <code>format</code> or <code>result</code>
+ * is NULL
+ */ 
+char *Time_fmt(char *result, int size, const char *format, time_t time);
 
 
 /**

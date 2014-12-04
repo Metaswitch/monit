@@ -119,31 +119,31 @@ void monit_http(int action) {
 
   case STOP_HTTP:
     if(!running) break;
-    LogInfo("Shutting down Monit HTTP server\n");
+    LogInfo("Shutting down %s HTTP server\n", prog);
     stop_httpd();
     if( (status = pthread_join(thread, NULL)) != 0) {
-      LogError("Monit: Failed to stop the http server. Thread error -- %s.\n",
-          strerror(status));
+      LogError("%s: Failed to stop the http server. Thread error -- %s.\n",
+          prog, strerror(status));
     } else {
-      LogInfo("Monit HTTP server stopped\n");
+      LogInfo("%s HTTP server stopped\n", prog);
       running = FALSE;
     }
     break;
 
   case START_HTTP:
-    LogInfo("Starting Monit HTTP server at [%s:%d]\n",
-        Run.bind_addr ? Run.bind_addr : "*", Run.httpdport);
+    LogInfo("Starting %s HTTP server at [%s:%d]\n",
+        prog, Run.bind_addr?Run.bind_addr:"*", Run.httpdport);
     if( (status = pthread_create(&thread, NULL, thread_wrapper, NULL)) != 0) {
-      LogError("Monit: Failed to create the http server. Thread error -- %s.\n",
-          strerror(status));
+      LogError("%s: Failed to create the http server. Thread error -- %s.\n",
+          prog, strerror(status));
     } else {
-      LogInfo("Monit HTTP server started\n");
+      LogInfo("%s HTTP server started\n", prog);
       running = TRUE;
     }
     break;
 
   default:
-    LogError("Monit: Unknown http server action\n");
+    LogError("%s: Unknown http server action\n", prog);
     break;
 
   }

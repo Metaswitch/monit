@@ -1,40 +1,6 @@
-                     CHANGES version 5.9
+                     CHANGES version 5.8.1
 
            This file summarizes changes made since 5.0
-
-Version 5.9
-
-New: Automatically reload Monit if ID was reset using -r CLI
-option.
-
-Fixed: If Monit ID file is missing on stop, don't create it
-again with current runtime ID (allows to reset ID without
-stopping Monit first => intuitive file removal followed by
-Monit reload works now).
-
-Fixed: MySQL protocol test anonymous login.
-
-Fixed: Support TLSv1.1 and TLSv1.2 in "set mailserver".
-
-Fixed: Sporadic "PPID changed from 0 to ..." alert after process
-restart.
-
-Fixed: Subtract SLAB reclaimable memory from the system memory
-usage on Linux.
-
-Fixed: Some systems with upstart (e.g. RHEL/CentOS) had problems
-with restart action which consisted of stop+start sequence - the pidfile
-disappeared after stop+start sequence and Monit though the process is not
-running, as the pidfile was missing due to upstart's synchronization
-problems. Monit now waits not just for process exit, but for stop/start program
-finish too.
-
-Fixed: "PID/PPID changed" events were sometimes triggered after restart
-program.
-
-New: Log output from start/stop/restart programs. In the case of success
-the output is logged only in debug mode.
-
 
 Version 5.8.1
 

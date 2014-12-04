@@ -165,7 +165,7 @@ int kill_daemon(int sig) {
 
   if(sig == SIGTERM) {
 
-    fprintf(stdout, "Monit daemon with pid [%d] killed\n", (int)pid);
+    fprintf(stdout, "%s daemon with pid [%d] killed\n", prog, (int)pid);
     fflush(stdout);
 
   }

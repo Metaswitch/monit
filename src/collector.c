@@ -71,14 +71,14 @@ static int data_send(Socket_T socket, Mmonit_T C, const char *D) {
                               "Content-Length: %d\r\n"
                               "Pragma: no-cache\r\n"
                               "Accept: */*\r\n"
-                              "User-Agent: Monit/%s\r\n"
+                              "User-Agent: %s/%s\r\n"
                               "%s"
                               "\r\n"
                               "%s",
                               C->url->path,
                               C->url->hostname, C->url->port,
                               strlen(D),
-                              VERSION,
+                              prog, VERSION,
                               auth?auth:"",
                               D);
         FREE(auth);
@@ -130,7 +130,7 @@ int handle_mmonit(Event_T E) {
         StringBuffer_T sb = StringBuffer_create(256);
         for (; C; C = C->next) {
                 if (! (socket = socket_create_t(C->url->hostname, C->url->port, SOCKET_TCP, C->ssl, C->timeout))) {
-                        LogError("M/Monit: cannot open a connection to %s\n", C->url->url);
+                        LogError("M/Monit: cannot open a connection to %s -- %s\n", C->url->url, STRERROR);
                         goto error;
                 }
                 if (! socket_set_tcp_nodelay(socket)) {

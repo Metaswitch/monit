@@ -39,10 +39,8 @@
 #include "File.h"
 #include "List.h"
 #include "system/Net.h"
-#include "StringBuffer.h"
 
 #include "system/System.h"
-#include "system/Time.h"
 #include "system/Command.h"
 
 
@@ -69,8 +67,6 @@ struct T {
         char **_args;
         char *working_directory;
 };
-
-
 struct Process_T {
         pid_t pid;
         uid_t uid;
@@ -84,7 +80,6 @@ struct Process_T {
         OutputStream_T out;
         char *working_directory;
 };
-
 
 /* --------------------------------------------------------------- Private */
 
@@ -152,7 +147,9 @@ static inline char **_env(T C) {
 
 /* Create stdio pipes for communication between parent and child process */
 static void createPipes(Process_T P) {
-        if (pipe(P->stdin_pipe) < 0 || pipe(P->stdout_pipe) < 0 || pipe(P->stderr_pipe) < 0) {
+        if (pipe(P->stdin_pipe) < 0 
+            || pipe(P->stdout_pipe) < 0 
+            || pipe(P->stderr_pipe) < 0) {
                 ERROR("Command pipe(2): Bad file descriptors -- %s", System_getLastError());
         }
 }
@@ -426,7 +423,7 @@ void Command_setDir(T C, const char *dir) {
 }
 
 
-const char *Command_getDir(T C) {
+const char *Command_getDir(Command_T C) {
         assert(C);
         return C->working_directory;
 }
@@ -442,25 +439,8 @@ void Command_setEnv(Command_T C, const char *name, const char *value) {
 }
 
 
-/* Env variables are stored in the environment list as "name=value" strings */
-void Command_vSetEnv(T C, const char *name, const char *value, ...) {
-        assert(C);
-        assert(name);
-        removeEnv(C, name);
-        StringBuffer_T b = StringBuffer_new(name);
-        StringBuffer_append(b, "=");
-        va_list ap;
-        va_start(ap, value);
-        StringBuffer_vappend(b, value, ap);
-        va_end(ap);
-        List_append(C->env, Str_dup(StringBuffer_toString(b)));
-        StringBuffer_free(&b);
-        FREE(C->_env); // Recreate Command environment on exec
-}
-
-
 /* Returns the value part from a "name=value" environment string */
-const char *Command_getEnv(T C, const char *name) {
+const char *Command_getEnv(Command_T C, const char *name) {
         assert(C);
         assert(name);
         char *e = findEnv(C, name);
@@ -494,8 +474,9 @@ Process_T Command_execute(T C) {
                 ERROR("Command: fork failed -- %s\n", System_getLastError());
                 Process_free(&P);
                 return NULL;
-        } else if (P->pid == 0) { 
-                // Child
+        }
+        // Child
+        else if (P->pid == 0) { 
                 if (C->working_directory) {
                         if (! Dir_chdir(C->working_directory)) {
                                 exec_error = errno;
@@ -536,9 +517,8 @@ Process_T Command_execute(T C) {
         // Parent
         if (exec_error != 0)
                 Process_free(&P);
-        else
+        else 
                 setupParentPipes(P);
         errno = exec_error;
         return P;
 }
-
