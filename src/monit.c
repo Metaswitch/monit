@@ -178,7 +178,7 @@ int do_wakeupcall() {
 
         if ((pid = exist_daemon()) > 0) {
                 kill(pid, SIGUSR1);
-                LogInfo("%s daemon with PID %d awakened\n", prog, pid);
+                LogInfo("Monit daemon with PID %d awakened\n", pid);
 
                 return TRUE;
         }
@@ -323,7 +323,7 @@ static void do_reinit() {
         int status;
 
         LogInfo("Awakened by the SIGHUP signal\n");
-        LogInfo("Reinitializing %s - Control file '%s'\n", prog, Run.controlfile);
+        LogInfo("Reinitializing Monit - Control file '%s'\n", Run.controlfile);
 
         /* Wait non-blocking for any children that has exited. Since we
          reinitialize any information about children we have setup to wait
@@ -497,7 +497,7 @@ static void do_exit() {
                         heartbeatRunning = FALSE;
                 }
 
-                LogInfo("%s daemon with pid [%d] killed\n", prog, (int)getpid());
+                LogInfo("Monit daemon with pid [%d] killed\n", (int)getpid());
 
                 /* send the monit stop notification */
                 Event_post(Run.system, Event_Instance, STATE_CHANGED, Run.system->action_MONIT_STOP, "Monit stopped");
@@ -521,9 +521,10 @@ static void do_default() {
 
                 Run.once = FALSE;
                 if (can_http())
-                        LogInfo("Starting %s daemon with http interface at [%s:%d]\n", prog, Run.bind_addr?Run.bind_addr:"*", Run.httpdport);
+                        LogInfo("Starting Monit " VERSION " daemon with http interface at [%s:%d]\n",
+                                Run.bind_addr ? Run.bind_addr : "*", Run.httpdport);
                 else
-                        LogInfo("Starting %s daemon\n", prog);
+                        LogInfo("Starting Monit " VERSION " daemon\n");
 
                 if (Run.startdelay)
                         LogInfo("Monit start delay set -- pause for %ds\n", Run.startdelay);
@@ -534,7 +535,7 @@ static void do_default() {
                         Util_redirectStdFds();
 
                 if (! file_createPidFile(Run.pidfile)) {
-                        LogError("%s daemon died\n", prog);
+                        LogError("Monit daemon died\n");
                         exit(1);
                 }
 
@@ -598,6 +599,7 @@ static void do_default() {
  */
 static void handle_options(int argc, char **argv) {
         int opt;
+        int deferred_opt = 0;
         opterr = 0;
         Run.mygroup = NULL;
         const char *shortopts = "c:d:g:l:p:s:HIirtvVh";
@@ -619,10 +621,11 @@ static void handle_options(int argc, char **argv) {
                 {"help",        no_argument,            NULL,   'h'},
                 {0}
         };
-        while ((opt = getopt_long(argc, argv, shortopts, longopts, NULL)) != -1) {
+        while ((opt = getopt_long(argc, argv, shortopts, longopts, NULL)) != -1)
 #else
-        while ((opt = getopt(argc, argv, shortopts)) != -1) {
+        while ((opt = getopt(argc, argv, shortopts)) != -1)
 #endif
+        {
                 switch (opt) {
                         case 'c':
                         {
@@ -679,29 +682,17 @@ static void handle_options(int argc, char **argv) {
                         }
                         case 'i':
                         {
-                                do_init();
-                                assert(Run.id);
-                                printf("Monit ID: %s\n", Run.id);
-                                exit(0);
+                                deferred_opt = 'i';
                                 break;
                         }
                         case 'r':
                         {
-                                do_init();
-                                assert(Run.id);
-                                printf("Reset Monit Id? [Y/N]> ");
-                                if (getchar() == 'Y') {
-                                        File_delete(Run.idfile);
-                                        Util_monitId(Run.idfile);
-                                }
-                                exit(0);
+                                deferred_opt = 'r';
                                 break;
                         }
                         case 't':
                         {
-                                do_init(); // Parses control file and initialize program, exit on error
-                                printf("Control file syntax OK\n");
-                                exit(0);
+                                deferred_opt = 't';
                                 break;
                         }
                         case 'v':
@@ -750,6 +741,41 @@ static void handle_options(int argc, char **argv) {
                                 }
                                 exit(1);
                         }
+                }
+        }
+        /* Handle deferred options to make arguments to the program positional
+         independent. These options are handled last, here as they represent exit
+         points in the application and the control-file might be set with -c and
+         these options need to respect the new control-file location as they call
+         do_init */
+        switch (deferred_opt) {
+                case 't':
+                {
+                        do_init(); // Parses control file and initialize program, exit on error
+                        printf("Control file syntax OK\n");
+                        exit(0);
+                        break;
+                }
+                case 'r':
+                {
+                        do_init();
+                        assert(Run.id);
+                        printf("Reset Monit Id? [y/n]> ");
+                        if ( getchar() == 'y') {
+                                File_delete(Run.idfile);
+                                Util_monitId(Run.idfile);
+                                kill_daemon(SIGHUP); // make any running Monit Daemon reload the new ID-File
+                        }
+                        exit(0);
+                        break;
+                }
+                case 'i':
+                {
+                        do_init();
+                        assert(Run.id);
+                        printf("Monit ID: %s\n", Run.id);
+                        exit(0);
+                        break;
                 }
         }
 }
