@@ -414,7 +414,7 @@ defined, Monit will just send an alert on error.
 
 The host address can be specified as a hostname string or as an
 IP-address string on a dotted decimal format. Such as,
-tildeslash.com or "64.87.72.95".
+example.com or "64.87.72.95".
 
 =head3 System
 
@@ -3305,7 +3305,7 @@ the send/expect mechanism:
 Here we ping a remote host to check if it is up and if not, send an
 alert:
 
- check host www.tildeslash.com with address www.tildeslash.com
+ check host www.example.com with address www.example.com
        if failed ping then alert
 
 In the following example we ask Monit to compute and verify the
@@ -3316,7 +3316,7 @@ be disabled to prevent possibly restarting a compromised binary:
  check process apache with pidfile /var/run/httpd.pid
        start program = "/etc/init.d/httpd start"
        stop program  = "/etc/init.d/httpd stop"
-       if failed host www.tildeslash.com port 80 then restart
+       if failed host www.example.com port 80 then restart
        depends on apache_bin
 
  check file apache_bin with path /usr/local/apache/bin/httpd
@@ -3429,7 +3429,7 @@ statement and a file check dependency:
               Your faithful employee,
               monit
       }
-      if failed host www.tildeslash.com  port 80 then restart
+      if failed host www.example.com  port 80 then restart
       depend httpd_bin
       group apache
 
@@ -3642,10 +3642,10 @@ of this man page also receive inspiration from the same authors.
 
 =head1 COPYRIGHT
 
-Copyright (C) 2001-2016 by Tildeslash Ltd. All Rights Reserved.
-This product is distributed in the hope that it will be useful,
-but WITHOUT any warranty; without even the implied warranty of
-MERCHANTABILITY or FITNESS for a particular purpose.
+Copyright: Metaswitch Networks 2017
+No rights are granted except for those provided to you by Metaswitch Networks in
+a separate written agreement, or for third party components as described in the
+Clearwater Core Open Source Acknowledgements document.
 
 
 =head1 SEE ALSO
