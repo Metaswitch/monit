@@ -176,7 +176,7 @@
 #    if totalmem > 200.0 MB for 5 cycles then restart
 #    if children > 250 then restart
 #    if loadavg(5min) greater than 10 for 8 cycles then stop
-#    if failed host www.tildeslash.com port 80 protocol http
+#    if failed host www.example.com port 80 protocol http
 #       and request "/somefile.html"
 #       then restart
 #    if failed port 443 type tcpssl protocol http

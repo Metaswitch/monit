@@ -9,13 +9,13 @@ AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([src])
 
 # ---------------------------------------------------------------------------
-# Programs 
+# Programs
 # ---------------------------------------------------------------------------
 
 AC_PROG_CC
 
 # ---------------------------------------------------------------------------
-# Libtool 
+# Libtool
 # ---------------------------------------------------------------------------
 
 AC_PROG_LIBTOOL
@@ -26,7 +26,7 @@ AC_PROG_LIBTOOL
 
 UNIT_TEST="test"
 AC_ARG_ENABLE(optimized,
-	AS_HELP_STRING([--enable-optimized], 
+	AS_HELP_STRING([--enable-optimized],
         	[Build software optimized. Unit Tests are not enabled with this option]),
     [
         if test "x$enableval" = "xyes" ; then
@@ -62,7 +62,7 @@ AC_ARG_ENABLE(profiling,
 )
 
 AC_ARG_ENABLE([openssl],
-        AS_HELP_STRING([--enable-openssl(=<path>)], 
+        AS_HELP_STRING([--enable-openssl(=<path>)],
                 [Link Monit with openssl. An optional path argument may
                 be given to specify the top-level directory to search for
                 openssl to link with]),
@@ -84,14 +84,14 @@ AC_ARG_ENABLE([openssl],
      ],[openssl="false"])
 
 # ---------------------------------------------------------------------------
-# Libraries 
+# Libraries
 # ---------------------------------------------------------------------------
 
 AC_CHECK_LIB([pthread], [pthread_create], [], [AC_MSG_ERROR([POSIX thread library is required])])
 AC_CHECK_LIB([m], [round], [], [AC_MSG_ERROR([Math library is required])])
 
 # ---------------------------------------------------------------------------
-# Header files 
+# Header files
 # ---------------------------------------------------------------------------
 
 AC_HEADER_STDC
@@ -151,7 +151,7 @@ AC_CHECK_TYPES([uchar_t])
 AC_CHECK_TYPES([uint32_t])
 
 # ------------------------------------------------------------------------
-# Functions 
+# Functions
 # ------------------------------------------------------------------------
 
 # Require a working setjmp
@@ -182,7 +182,7 @@ AC_CHECK_FUNCS([timegm])
 # ------------------------------------------------------------------------
 
 architecture=`uname`
-if test "$architecture" = "Linux"  
+if test "$architecture" = "Linux"
 then
    CFLAGS="$CFLAGS -D _REENTRANT"
    AC_DEFINE([LINUX], 1, [Define to 1 if the system is Linux])
@@ -236,14 +236,14 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Compiler 
+# Compiler
 # ---------------------------------------------------------------------------
 
 # Compiler characteristics
 AC_C_CONST
 AC_C_BIGENDIAN
 
-# If the compiler is gcc, tune warnings and make the char type unsigned 
+# If the compiler is gcc, tune warnings and make the char type unsigned
 # and enable C99 support
 if test "x$GCC" = "xyes"; then
 	CFLAGS="$CFLAGS -Wall -Wunused -Wno-unused-label -funsigned-char";
@@ -252,7 +252,7 @@ if test "x$GCC" = "xyes"; then
         # does this compiler support -Wno-pointer-sign ?
         svd_CFLAGS="$CFLAGS"
         CFLAGS="-Wno-pointer-sign $CFLAGS"
-        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [return 0;])], [], [CFLAGS="$svd_CFLAGS"])        
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [return 0;])], [], [CFLAGS="$svd_CFLAGS"])
         # does this compiler support -Wno-address ?
         svd_CFLAGS="$CFLAGS"
         CFLAGS="-Wno-address $CFLAGS"
@@ -263,12 +263,12 @@ fi
 # Atomic support
 # ------------------------------------------------------------------------
 # AC_MSG_CHECKING(for Atomic support)
-# if test `uname` = "Darwin" -o `uname` = "FreeBSD" 
+# if test `uname` = "Darwin" -o `uname` = "FreeBSD"
 # then
 #         AC_MSG_RESULT(yes)
 # elif test `uname` = "SunOS"
 # then
-#         AC_CHECK_HEADER([atomic.h], 
+#         AC_CHECK_HEADER([atomic.h],
 #         [AC_MSG_RESULT(yes)],
 #         [AC_MSG_ERROR([atomic.h is required for atomic support])])
 # else
@@ -320,17 +320,6 @@ AC_CONFIG_FILES([Makefile test/Makefile])
 AC_OUTPUT
 
 cat <<EOT
-+------------------------------------------------------------+
-| License:                                                   |
-| This is Open Source Software and use is subject to the GNU |
-| AFFERO GENERAL PUBLIC LICENSE version 3, available in this |
-| distribution in the file COPYING.                          |
-|                                                            |
-| By continuing this installation process, you are bound by  | 
-| the terms of this license agreement. If you do not agree   |
-| with the terms of this license, you must abort the         |
-| installation process at this point.                        |
-+------------------------------------------------------------+
 | Libmonit is configured as follows:                         |
 |                                                            |
 EOT
