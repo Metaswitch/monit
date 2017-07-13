@@ -4,7 +4,6 @@ Version: 5.18.1
 Release: 1
 Group: Utilities/Console
 BuildRoot: %{_tmppath}/%{name}-buildroot
-License: Metaswitch proprietary
 
 %{!?_with_ssl: %{!?_without_ssl: %define _with_ssl --with-ssl}}
 %{?_with_ssl:BuildRequires: openssl-devel}
