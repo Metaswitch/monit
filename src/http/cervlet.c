@@ -570,9 +570,9 @@ static void do_foot(HttpResponse res) {
         StringBuffer_append(res->outputbuffer,
                             "</center></div></div>"
                             "<div id='footer'>"
-                            "<p>Copyright: Metaswitch Networks 2017"
+                            "<p>Copyright: Metaswitch Networks 2017. "
                             "No rights to this software are granted except for those provided to you by Metaswitch Networks in a separate written agreement or for third party components as described in the Clearwater Core Open Source Acknowledgements document.</p>"
-                            "<p>This software contains Monit.  Portions of Monit are the work of Tildeslash Ltd.  The following notice applies to those portions:"
+                            "<p>This software contains Monit.  Portions of Monit are the work of Tildeslash Ltd.  The following notice applies to those portions: "
                             "Copyright (C) Tildeslash Ltd. All rights reserved.</p>"
                             "<p>Additional of the software contained in this package include the works of third parties, as further disclosed in the Clearwater Core Open Source Acknowledgements document.</p>"
                             "<span style='margin-left:5px;'></span>"
@@ -617,9 +617,9 @@ static void do_about(HttpRequest req, HttpResponse res) {
         StringBuffer_append(res->outputbuffer,
                             "<ul>"
                             "<li style='padding-bottom:10px;'>"
-                            "Copyright: Metaswitch Networks 2017"
+                            "Copyright: Metaswitch Networks 2017. "
                             "No rights to this software are granted except for those provided to you by Metaswitch Networks in a separate written agreement or for third party components as described in the Clearwater Core Open Source Acknowledgements document.<br>"
-                            "This software contains Monit.  Portions of Monit are the work of Tildeslash Ltd.  The following notice applies to those portions:"
+                            "This software contains Monit.  Portions of Monit are the work of Tildeslash Ltd.  The following notice applies to those portions: "
                             "Copyright (C) Tildeslash Ltd. All rights reserved.<br>"
                             "Additional of the software contained in this package include the works of third parties, as further disclosed in the Clearwater Core Open Source Acknowledgements document."
                             "</li></ul>");
