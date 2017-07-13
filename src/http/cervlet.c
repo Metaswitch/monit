@@ -616,9 +616,13 @@ static void do_about(HttpRequest req, HttpResponse res) {
                             "monit " VERSION "</center></h1>");
         StringBuffer_append(res->outputbuffer,
                             "<ul>"
-                            "<li style='padding-bottom:10px;'>Copyright &copy; 2017 <a "
-                            "href='http://metaswitch.com/'>Metaswitch Networks"
-                            "</a>. All Rights Reserved.</li></ul>");
+                            "<li style='padding-bottom:10px;'>"
+                            "Copyright: Metaswitch Networks 2017"
+                            "No rights to this software are granted except for those provided to you by Metaswitch Networks in a separate written agreement or for third party components as described in the Clearwater Core Open Source Acknowledgements document.<br>"
+                            "This software contains Monit.  Portions of Monit are the work of Tildeslash Ltd.  The following notice applies to those portions:"
+                            "Copyright (C) Tildeslash Ltd. All rights reserved.<br>"
+                            "Additional of the software contained in this package include the works of third parties, as further disclosed in the Clearwater Core Open Source Acknowledgements document."
+                            "</li></ul>");
         StringBuffer_append(res->outputbuffer, "<hr size='1'>");
         StringBuffer_append(res->outputbuffer,
                             "<center><p style='padding-top:20px;'>[<a href='.'>Back to Monit</a>]</p></body></html>");
