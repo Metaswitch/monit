@@ -570,7 +570,11 @@ static void do_foot(HttpResponse res) {
         StringBuffer_append(res->outputbuffer,
                             "</center></div></div>"
                             "<div id='footer'>"
-                            "Copyright &copy; 2001-2016 <a href=\"http://tildeslash.com/\">Tildeslash</a>. All rights reserved. "
+                            "<p>Copyright: Metaswitch Networks 2017. "
+                            "No rights to this software are granted except for those provided to you by Metaswitch Networks in a separate written agreement or for third party components as described in the Clearwater Core Open Source Acknowledgements document.</p>"
+                            "<p>This software contains Monit.  Portions of Monit are the work of Tildeslash Ltd.  The following notice applies to those portions: "
+                            "Copyright (C) Tildeslash Ltd. All rights reserved.</p>"
+                            "<p>Additional of the software contained in this package include the works of third parties, as further disclosed in the Clearwater Core Open Source Acknowledgements document.</p>"
                             "<span style='margin-left:5px;'></span>"
                             "<a href=\"http://mmonit.com/monit/\">Monit web site</a> | "
                             "<a href=\"http://mmonit.com/wiki/\">Monit Wiki</a> | "
@@ -608,22 +612,18 @@ static void do_home(HttpRequest req, HttpResponse res) {
 static void do_about(HttpRequest req, HttpResponse res) {
         StringBuffer_append(res->outputbuffer,
                             "<html><head><title>about monit</title></head><body bgcolor=white>"
-                            "<br><h1><center><a href='http://mmonit.com/monit/'>"
-                            "monit " VERSION "</a></center></h1>");
+                            "<br><h1><center>"
+                            "monit " VERSION "</center></h1>");
         StringBuffer_append(res->outputbuffer,
                             "<ul>"
-                            "<li style='padding-bottom:10px;'>Copyright &copy; 2001-2016 <a "
-                            "href='http://tildeslash.com/'>Tildeslash Ltd"
-                            "</a>. All Rights Reserved.</li></ul>");
+                            "<li style='padding-bottom:10px;'>"
+                            "Copyright: Metaswitch Networks 2017. "
+                            "No rights to this software are granted except for those provided to you by Metaswitch Networks in a separate written agreement or for third party components as described in the Clearwater Core Open Source Acknowledgements document.<br>"
+                            "This software contains Monit.  Portions of Monit are the work of Tildeslash Ltd.  The following notice applies to those portions: "
+                            "Copyright (C) Tildeslash Ltd. All rights reserved.<br>"
+                            "Additional of the software contained in this package include the works of third parties, as further disclosed in the Clearwater Core Open Source Acknowledgements document."
+                            "</li></ul>");
         StringBuffer_append(res->outputbuffer, "<hr size='1'>");
-        StringBuffer_append(res->outputbuffer,
-                            "<p>This program is free software; you can redistribute it and/or "
-                            "modify it under the terms of the GNU Affero General Public License version 3</p>"
-                            "<p>This program is distributed in the hope that it will be useful, but "
-                            "WITHOUT ANY WARRANTY; without even the implied warranty of "
-                            "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the "
-                            "<a href='http://www.gnu.org/licenses/agpl.html'>"
-                            "GNU AFFERO GENERAL PUBLIC LICENSE</a> for more details.</p>");
         StringBuffer_append(res->outputbuffer,
                             "<center><p style='padding-top:20px;'>[<a href='.'>Back to Monit</a>]</p></body></html>");
 }

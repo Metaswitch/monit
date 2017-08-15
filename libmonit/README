@@ -1,7 +1,7 @@
 
 libmonit
 
-This library synthesis modules used by Monit (http://mmonit.com/monit/) into
+This library synthesis modules used by Monit into
 a static library. Libmonit is built as part of Monit and is not meant to be
 installed nor distributed.
 
